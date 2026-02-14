@@ -1,33 +1,39 @@
 import socket
+import threading
 
-HOST = "127.0.0.1"   # localhost
+HOST = "127.0.0.1"
 PORT = 12000
 
-# Create TCP socket
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# Bind and listen
-server_socket.bind((HOST, PORT))
-server_socket.listen(1)
-print("Server is listening on port", PORT)
-
-while True:
-    # Accept a client
-    conn, addr = server_socket.accept()
+def handle_client(conn, addr):
     print("Connected by", addr)
 
-    # Receive data
     data = conn.recv(1024)
     if not data:
         conn.close()
-        continue
+        return
 
     message = data.decode()
-    print("Received:", message)
+    print("Received from", addr, ":", message)
 
-    # Send response
     response = message.upper()
     conn.send(response.encode())
 
-    # Close client connection
     conn.close()
+    print("Connection closed for", addr)
+
+
+# Create TCP socket
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind((HOST, PORT))
+server_socket.listen()
+print("Server listening on port", PORT)
+
+while True:
+    conn, addr = server_socket.accept()
+
+    # Create a new thread for each client
+    client_thread = threading.Thread(
+        target=handle_client,
+        args=(conn, addr)
+    )
+    client_thread.start()
