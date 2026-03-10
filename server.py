@@ -3,23 +3,20 @@ import threading
 import json
 import os
 import logging
+import ssl
 
 HOST = "127.0.0.1"
 PORT = 12000
-
 SEAT_FILE = "seats.json"
 
-# Lock for concurrency control
 lock = threading.Lock()
 
-# Logging configuration
 logging.basicConfig(
     filename="server.log",
     level=logging.INFO,
     format="%(asctime)s - %(message)s"
 )
 
-# Load seat data from file
 def load_seats():
     if os.path.exists(SEAT_FILE):
         with open(SEAT_FILE, "r") as f:
@@ -29,12 +26,9 @@ def load_seats():
         save_seats(seats)
         return seats
 
-
-# Save seat data to file
 def save_seats(seats):
     with open(SEAT_FILE, "w") as f:
         json.dump(seats, f)
-
 
 seats = load_seats()
 
@@ -49,7 +43,6 @@ def handle_client(conn, addr):
         print("Request from", addr, ":", message)
         logging.info(f"{addr} -> {message}")
 
-        # STATUS command
         if message == "STATUS":
             with lock:
                 status = ""
@@ -75,13 +68,10 @@ def handle_client(conn, addr):
             return
 
         with lock:
-
             if seat_id not in seats:
                 response = "FAILED_INVALID_SEAT"
-
             elif seats[seat_id]:
                 response = "FAILED_ALREADY_BOOKED"
-
             else:
                 seats[seat_id] = True
                 save_seats(seats)
@@ -94,17 +84,22 @@ def handle_client(conn, addr):
         conn.close()
 
 
-# Server setup
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((HOST, PORT))
 server_socket.listen()
 
-print("Reservation server running on port", PORT)
+# TLS configuration
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
+
+print("Secure reservation server running on port", PORT)
 
 while True:
     conn, addr = server_socket.accept()
 
+    secure_conn = context.wrap_socket(conn, server_side=True)
+
     threading.Thread(
         target=handle_client,
-        args=(conn, addr)
+        args=(secure_conn, addr)
     ).start()
