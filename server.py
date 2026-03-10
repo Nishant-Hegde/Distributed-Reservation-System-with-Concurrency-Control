@@ -26,6 +26,19 @@ def handle_client(conn, addr):
         message = data.decode().strip()
         print("Request from", addr, ":", message)
 
+        # -------- STATUS --------
+        if message == "STATUS":
+            with lock:
+                status = ""
+                for seat in seats:
+                    if seats[seat]:
+                        status += f"{seat}:BOOKED "
+                    else:
+                        status += f"{seat}:FREE "
+
+            conn.send(status.encode())
+            return
+
         parts = message.split()
 
         if len(parts) != 2 or parts[0] != "RESERVE":
@@ -38,8 +51,10 @@ def handle_client(conn, addr):
         with lock:
             if seat_id not in seats:
                 response = "FAILED_INVALID_SEAT"
+
             elif seats[seat_id]:
                 response = "FAILED_ALREADY_BOOKED"
+
             else:
                 seats[seat_id] = True
                 response = "SUCCESS"
@@ -59,6 +74,7 @@ print("Reservation server running on port", PORT)
 
 while True:
     conn, addr = server_socket.accept()
+
     threading.Thread(
         target=handle_client,
         args=(conn, addr)

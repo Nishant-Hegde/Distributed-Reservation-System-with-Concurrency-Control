@@ -6,8 +6,12 @@ PORT = 12000
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
 
-seat = input("Enter seat number to reserve (1-5): ")
-message = f"RESERVE {seat}"
+seat = input("Enter seat number (1-5) OR type STATUS: ")
+
+if seat.upper() == "STATUS":
+    message = "STATUS"
+else:
+    message = f"RESERVE {seat}"
 
 client_socket.send(message.encode())
 
