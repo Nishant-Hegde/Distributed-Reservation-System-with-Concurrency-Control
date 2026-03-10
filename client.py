@@ -1,12 +1,18 @@
 import socket
+import ssl
 
 HOST = "127.0.0.1"
 PORT = 12000
 
+context = ssl.create_default_context()
+context.check_hostname = False
+context.verify_mode = ssl.CERT_NONE
+
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+secure_socket = context.wrap_socket(client_socket, server_hostname=HOST)
 
 try:
-    client_socket.connect((HOST, PORT))
+    secure_socket.connect((HOST, PORT))
 
     print("------ Reservation Client ------")
     print("1. Reserve Seat")
@@ -22,21 +28,21 @@ try:
 
         if not seat.isdigit():
             print("Invalid seat number")
-            client_socket.close()
+            secure_socket.close()
             exit()
 
         message = f"RESERVE {seat}"
 
     else:
         print("Invalid choice")
-        client_socket.close()
+        secure_socket.close()
         exit()
 
-    client_socket.send(message.encode())
+    secure_socket.send(message.encode())
 
-    response = client_socket.recv(1024)
+    response = secure_socket.recv(1024)
 
     print("Server response:", response.decode())
 
 finally:
-    client_socket.close()
+    secure_socket.close()
