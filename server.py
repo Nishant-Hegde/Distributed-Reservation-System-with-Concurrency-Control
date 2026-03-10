@@ -1,20 +1,42 @@
 import socket
 import threading
+import json
+import os
+import logging
 
 HOST = "127.0.0.1"
 PORT = 12000
 
-# Shared resource: seats
-seats = {
-    1: False,
-    2: False,
-    3: False,
-    4: False,
-    5: False
-}
+SEAT_FILE = "seats.json"
 
 # Lock for concurrency control
 lock = threading.Lock()
+
+# Logging configuration
+logging.basicConfig(
+    filename="server.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(message)s"
+)
+
+# Load seat data from file
+def load_seats():
+    if os.path.exists(SEAT_FILE):
+        with open(SEAT_FILE, "r") as f:
+            return json.load(f)
+    else:
+        seats = {str(i): False for i in range(1, 6)}
+        save_seats(seats)
+        return seats
+
+
+# Save seat data to file
+def save_seats(seats):
+    with open(SEAT_FILE, "w") as f:
+        json.dump(seats, f)
+
+
+seats = load_seats()
 
 
 def handle_client(conn, addr):
@@ -25,8 +47,9 @@ def handle_client(conn, addr):
 
         message = data.decode().strip()
         print("Request from", addr, ":", message)
+        logging.info(f"{addr} -> {message}")
 
-        # STATUS
+        # STATUS command
         if message == "STATUS":
             with lock:
                 status = ""
@@ -45,10 +68,14 @@ def handle_client(conn, addr):
             conn.send("INVALID_COMMAND".encode())
             return
 
-        seat_id = int(parts[1])
+        seat_id = parts[1]
 
-        # CRITICAL SECTION
+        if not seat_id.isdigit():
+            conn.send("INVALID_SEAT_NUMBER".encode())
+            return
+
         with lock:
+
             if seat_id not in seats:
                 response = "FAILED_INVALID_SEAT"
 
@@ -57,17 +84,17 @@ def handle_client(conn, addr):
 
             else:
                 seats[seat_id] = True
+                save_seats(seats)
                 response = "SUCCESS"
 
         conn.send(response.encode())
-
-    except Exception as e:  # basic server failure handling
-        print("Error:", e)
+        logging.info(f"{addr} <- {response}")
 
     finally:
         conn.close()
 
 
+# Server setup
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((HOST, PORT))
 server_socket.listen()
