@@ -26,7 +26,7 @@ def handle_client(conn, addr):
         message = data.decode().strip()
         print("Request from", addr, ":", message)
 
-        # -------- STATUS --------
+        # STATUS
         if message == "STATUS":
             with lock:
                 status = ""
@@ -47,7 +47,7 @@ def handle_client(conn, addr):
 
         seat_id = int(parts[1])
 
-        # ----- CRITICAL SECTION -----
+        # CRITICAL SECTION
         with lock:
             if seat_id not in seats:
                 response = "FAILED_INVALID_SEAT"
@@ -58,18 +58,20 @@ def handle_client(conn, addr):
             else:
                 seats[seat_id] = True
                 response = "SUCCESS"
-        # ----- END CRITICAL SECTION -----
 
         conn.send(response.encode())
+
+    except Exception as e:  # basic server failure handling
+        print("Error:", e)
 
     finally:
         conn.close()
 
 
-# Server setup
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((HOST, PORT))
 server_socket.listen()
+
 print("Reservation server running on port", PORT)
 
 while True:
