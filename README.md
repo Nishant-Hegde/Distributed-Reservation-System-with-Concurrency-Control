@@ -11,7 +11,9 @@ A distributed seat reservation system implemented in Python using **TCP socket p
 - Multi-client support using threading  
 - Concurrency control using thread locking  
 - Prevention of double booking  
-- Persistent seat storage using JSON  
+- Cancel booking support  
+- Persistent seat storage using JSON with atomic writes  
+- Server failure handling  
 - Server request logging  
 - Stress testing using concurrent client threads  
 - SSL/TLS encrypted communication  
@@ -42,13 +44,14 @@ The system follows a **multi-client client–server architecture**.
 
 **Server**
 - Accepts multiple client connections
-- Handles reservation requests
+- Handles reservation and cancellation requests
 - Maintains seat database
 - Ensures concurrency control
 - Logs activity
 
 **Client**
 - Allows users to reserve seats
+- Allows users to cancel bookings
 - Allows users to check seat availability
 
 **Stress Test Script**
@@ -66,6 +69,7 @@ The system follows a **multi-client client–server architecture**.
 | Command | Description |
 |--------|-------------|
 | `RESERVE <seat_number>` | Reserve a seat |
+| `CANCEL <seat_number>` | Cancel an existing booking |
 | `STATUS` | Get status of all seats |
 
 Example:
@@ -81,7 +85,9 @@ RESERVE 3
 | Response | Meaning |
 |----------|---------|
 | `SUCCESS` | Reservation successful |
+| `CANCELLED` | Booking successfully cancelled |
 | `FAILED_ALREADY_BOOKED` | Seat already reserved |
+| `FAILED_NOT_BOOKED` | Seat is not booked, cannot cancel |
 | `FAILED_INVALID_SEAT` | Seat number does not exist |
 | `INVALID_COMMAND` | Command format incorrect |
 | `INVALID_SEAT_NUMBER` | Seat number invalid |
@@ -130,7 +136,7 @@ seats.json
 
 Example file content:
 
-```
+```json
 {
  "1": false,
  "2": true,
@@ -143,6 +149,18 @@ Example file content:
 Where:
 - `true` = seat booked  
 - `false` = seat available  
+
+Seat state is saved using **atomic file writes** (`os.replace`) to prevent data corruption if the server crashes mid-write.
+
+---
+
+## Server Failure Handling
+
+| Scenario | Handling |
+|----------|---------|
+| Server crash mid-write | Atomic save via temp file + `os.replace` |
+| Unexpected client error | `try/except` in `handle_client`, logs error |
+| Port reuse after crash | `SO_REUSEADDR` on server socket |
 
 ---
 
@@ -249,10 +267,24 @@ Example interaction:
 ------ Reservation Client ------
 1. Reserve Seat
 2. Check Seat Status
+3. Cancel Booking
 Enter choice: 1
 Enter seat number (1-5): 3
 
 Server response: SUCCESS
+```
+
+Cancel example:
+
+```
+------ Reservation Client ------
+1. Reserve Seat
+2. Check Seat Status
+3. Cancel Booking
+Enter choice: 3
+Enter seat number to cancel (1-5): 3
+
+Server response: CANCELLED
 ```
 
 ---
@@ -283,10 +315,11 @@ This demonstrates **multiple concurrent clients interacting with the server simu
 - Multithreading  
 - Concurrency Control  
 - Persistent Data Storage  
+- Server Failure Handling  
 - SSL/TLS Secure Communication  
 
 ---
 
 ## Conclusion
 
-This project demonstrates how to build a **secure distributed reservation system** using low-level socket programming in Python. It supports **multiple concurrent clients**, prevents **double booking using concurrency control**, and ensures **secure communication through SSL/TLS encryption**.
+This project demonstrates how to build a **secure distributed reservation system** using low-level socket programming in Python. It supports **multiple concurrent clients**, prevents **double booking using concurrency control**, supports **cancellation of bookings**, and ensures **secure communication through SSL/TLS encryption**.
