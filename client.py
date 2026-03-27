@@ -13,36 +13,36 @@ secure_socket = context.wrap_socket(client_socket, server_hostname=HOST)
 
 try:
     secure_socket.connect((HOST, PORT))
-
     print("------ Reservation Client ------")
     print("1. Reserve Seat")
     print("2. Check Seat Status")
+    print("3. Cancel Booking")              # ADDED
 
     choice = input("Enter choice: ")
 
     if choice == "2":
         message = "STATUS"
-
     elif choice == "1":
         seat = input("Enter seat number (1-5): ")
-
         if not seat.isdigit():
             print("Invalid seat number")
             secure_socket.close()
             exit()
-
         message = f"RESERVE {seat}"
-
+    elif choice == "3":                     # ADDED
+        seat = input("Enter seat number to cancel (1-5): ")
+        if not seat.isdigit():
+            print("Invalid seat number")
+            secure_socket.close()
+            exit()
+        message = f"CANCEL {seat}"
     else:
         print("Invalid choice")
         secure_socket.close()
         exit()
 
     secure_socket.send(message.encode())
-
     response = secure_socket.recv(1024)
-
     print("Server response:", response.decode())
-
 finally:
     secure_socket.close()
